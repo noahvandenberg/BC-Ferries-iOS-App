@@ -4,31 +4,23 @@ struct DesignSystemView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    Section("Sailing States") {
-                        // Regular sailing
-                        SailingRow(sailing: .mockScheduled)
-                        
-                        // En route sailing
-                        SailingRow(sailing: .mockEnRoute)
-                        
-                        // Almost complete sailing
-                        SailingRow(sailing: .mockNearlyComplete)
-                        
-                        // Completed sailing
-                        SailingRow(sailing: .mockCompleted)
-                        
-                        // Cancelled sailing
-                        SailingRow(sailing: .mockCancelled)
-                        
-                        // Full capacity sailing
-                        SailingRow(sailing: .mockFullCapacity)
-                        
-                        // Low capacity sailing
-                        SailingRow(sailing: .mockLowCapacity)
+                VStack(spacing: 24) {
+                    VStack(spacing: 16) {
+                        ForEach([
+                            Sailing.mockScheduled,
+                            .mockEnRoute,
+                            .mockNearlyComplete,
+                            .mockCompleted,
+                            .mockCancelled,
+                            .mockFullCapacity,
+                            .mockLowCapacity
+                        ]) { sailing in
+                            SailingRow(sailing: sailing)
+                                .padding(.horizontal)
+                        }
                     }
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
             }
             .navigationTitle("Design System")
             .navigationBarTitleDisplayMode(.inline)

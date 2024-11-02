@@ -147,6 +147,25 @@ struct MainView: View {
                                 SailingRow(sailing: sailing)
                                     .transition(.opacity)
                             }
+                            
+                            // Design System Link
+                            Button {
+                                showingDesignSystem = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "paintpalette.fill")
+                                    Text("View Design System")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                }
+                                .padding(16)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(Color(.secondarySystemGroupedBackground))
+                                }
+                                .foregroundColor(.primary)
+                            }
+                            .padding(.horizontal)
                         }
                     } else if isLoading {
                         ProgressView()
@@ -216,9 +235,6 @@ struct MainView: View {
                         .padding()
                     }
                 }
-            }
-            .onLongPressGesture(minimumDuration: 2) {
-                showingDesignSystem = true
             }
             .sheet(isPresented: $showingDesignSystem) {
                 DesignSystemView()
