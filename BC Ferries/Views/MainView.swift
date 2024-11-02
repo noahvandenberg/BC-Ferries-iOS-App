@@ -27,8 +27,7 @@ struct MainView: View {
                                 Button(terminal.name) {
                                     if selectedDeparture != terminal {
                                         selectedDeparture = terminal
-                                        selectedArrival = nil
-                                        sailings = []
+                                        handleDepartureSelection(terminal)
                                     }
                                 }
                             }
@@ -64,7 +63,7 @@ struct MainView: View {
                                         if selectedArrival != terminal {
                                             withAnimation {
                                                 selectedArrival = terminal
-                                                loadSailings()
+                                                saveRouteAndLoadSailings()
                                             }
                                         }
                                     }
@@ -125,7 +124,15 @@ struct MainView: View {
                 }
             }
             .task {
+                // Load terminals
                 terminals = await FerryAPIClient.shared.fetchTerminals()
+                
+                // Restore last route if available
+                if let (departure, arrival) = UserPreferences.shared.getLastRoute() {
+                    selectedDeparture = departure
+                    selectedArrival = arrival
+                    loadSailings()
+                }
             }
             .overlay {
                 if let error = error {
@@ -147,6 +154,33 @@ struct MainView: View {
                 }
             }
         }
+    }
+    
+    private func handleDepartureSelection(_ terminal: Terminal) {
+        selectedArrival = nil
+        sailings = []
+        
+        // Get valid destinations for the selected terminal
+        let destinations = terminals.filter { terminal.validDestinations.contains($0.id) }
+        
+        // If there's only one destination, automatically select it
+        if destinations.count == 1 {
+            selectedArrival = destinations[0]
+            saveRouteAndLoadSailings()
+        }
+    }
+    
+    private func saveRouteAndLoadSailings() {
+        guard let departure = selectedDeparture,
+              let arrival = selectedArrival else {
+            return
+        }
+        
+        // Save the route
+        UserPreferences.shared.saveLastRoute(departure: departure, arrival: arrival)
+        
+        // Load sailings
+        loadSailings()
     }
     
     private func loadSailings() {
