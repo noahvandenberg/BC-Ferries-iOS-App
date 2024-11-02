@@ -9,6 +9,7 @@ struct MainView: View {
     @State private var error: Error?
     @State private var favorites: [FavoriteRoute] = []
     @State private var showingFavorites = false
+    @State private var showingDesignSystem = false
     
     var validDestinations: [Terminal] {
         guard let departure = selectedDeparture else { return [] }
@@ -161,6 +162,7 @@ struct MainView: View {
                 .padding(.vertical)
             }
             .navigationTitle("BC Ferries")
+            .background(Color(.systemGroupedBackground))
             .toolbar {
                 if let departure = selectedDeparture,
                    let arrival = selectedArrival {
@@ -214,6 +216,12 @@ struct MainView: View {
                         .padding()
                     }
                 }
+            }
+            .onLongPressGesture(minimumDuration: 2) {
+                showingDesignSystem = true
+            }
+            .sheet(isPresented: $showingDesignSystem) {
+                DesignSystemView()
             }
         }
     }
