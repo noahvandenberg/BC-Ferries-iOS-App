@@ -38,12 +38,4 @@ struct CapacityIndicator: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
-}
-
-#Preview {
-    VStack {
-        CapacityIndicator(percentageFull: 25)
-        CapacityIndicator(percentageFull: 75)
-        CapacityIndicator(percentageFull: 95)
-    }
 } 

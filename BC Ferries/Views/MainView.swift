@@ -7,6 +7,8 @@ struct MainView: View {
     @State private var sailings: [Sailing] = []
     @State private var isLoading = false
     @State private var error: Error?
+    @State private var favorites: [FavoriteRoute] = []
+    @State private var showingFavorites = false
     
     var validDestinations: [Terminal] {
         guard let departure = selectedDeparture else { return [] }
@@ -19,6 +21,47 @@ struct MainView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Favorites Section
+                    if !favorites.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Label("Favorites", systemImage: "star.fill")
+                                    .font(.headline)
+                                Spacer()
+                                Button {
+                                    withAnimation {
+                                        showingFavorites.toggle()
+                                    }
+                                } label: {
+                                    Label(showingFavorites ? "Hide" : "Show", 
+                                          systemImage: showingFavorites ? "chevron.up" : "chevron.down")
+                                        .labelStyle(.iconOnly)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal)
+                            
+                            if showingFavorites {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(favorites) { favorite in
+                                            FavoriteRouteButton(favorite: favorite) {
+                                                if let departure = Terminal.terminals[favorite.departureTerminalID],
+                                                   let arrival = Terminal.terminals[favorite.arrivalTerminalID] {
+                                                    selectedDeparture = departure
+                                                    selectedArrival = arrival
+                                                    saveRouteAndLoadSailings()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
                     // Route Selection Card
                     VStack(spacing: 12) {
                         // From Terminal
@@ -118,6 +161,23 @@ struct MainView: View {
                 .padding(.vertical)
             }
             .navigationTitle("BC Ferries")
+            .toolbar {
+                if let departure = selectedDeparture,
+                   let arrival = selectedArrival {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        FavoriteButton(
+                            departure: departure,
+                            arrival: arrival,
+                            isFavorite: UserPreferences.shared.isFavorite(
+                                departure: departure,
+                                arrival: arrival
+                            )
+                        ) {
+                            toggleFavorite(departure: departure, arrival: arrival)
+                        }
+                    }
+                }
+            }
             .refreshable {
                 if selectedDeparture != nil && selectedArrival != nil {
                     loadSailings()
@@ -133,6 +193,8 @@ struct MainView: View {
                     selectedArrival = arrival
                     loadSailings()
                 }
+                
+                favorites = UserPreferences.shared.getFavorites()
             }
             .overlay {
                 if let error = error {
@@ -207,6 +269,61 @@ struct MainView: View {
             }
             isLoading = false
         }
+    }
+    
+    private func toggleFavorite(departure: Terminal, arrival: Terminal) {
+        if UserPreferences.shared.isFavorite(departure: departure, arrival: arrival) {
+            if let favorite = favorites.first(where: { 
+                $0.departureTerminalID == departure.id && 
+                $0.arrivalTerminalID == arrival.id 
+            }) {
+                UserPreferences.shared.removeFavorite(favorite)
+            }
+        } else {
+            let favorite = FavoriteRoute(departure: departure, arrival: arrival)
+            UserPreferences.shared.saveFavorite(favorite)
+        }
+        
+        withAnimation {
+            favorites = UserPreferences.shared.getFavorites()
+        }
+    }
+}
+
+struct FavoriteButton: View {
+    let departure: Terminal
+    let arrival: Terminal
+    let isFavorite: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Label("Favorite", systemImage: isFavorite ? "star.fill" : "star")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(isFavorite ? .yellow : .gray)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct FavoriteRouteButton: View {
+    let favorite: FavoriteRoute
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: "ferry")
+                    .foregroundStyle(.secondary)
+                Text(favorite.name)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 }
 

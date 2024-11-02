@@ -135,7 +135,7 @@ class FerryAPIClient {
                 print("Found \(relevantRoutes.count) matching routes")
                 
                 // Process sailings
-                var sailings: [Sailing] = []
+                var uniqueSailings: [String: Sailing] = [:] // Use dictionary to prevent duplicates
                 
                 for route in relevantRoutes {
                     for sailing in route.sailings {
@@ -151,34 +151,41 @@ class FerryAPIClient {
                            let parsed = parseTime(arrivalTimeStr) {
                             arrivalDate = parsed
                         } else {
-                            // Use sailing duration if available
                             if let duration = parseDuration(route.sailingDuration) {
                                 arrivalDate = departureDate.addingTimeInterval(duration)
                             } else {
-                                // Default to 2 hours if no duration available
                                 arrivalDate = departureDate.addingTimeInterval(7200)
                             }
                         }
                         
-                        let newSailing = Sailing(
-                            id: UUID().uuidString,
-                            departureTerminal: route.fromTerminalCode,
-                            arrivalTerminal: route.toTerminalCode,
-                            scheduledDeparture: departureDate,
-                            scheduledArrival: arrivalDate,
-                            vesselName: sailing.vesselName ?? "Unknown Vessel",
-                            isCancelled: sailing.sailingStatus?.lowercased().contains("cancelled") ?? false,
-                            percentageFull: sailing.carFill ?? 0
-                        )
+                        // Create unique key based on departure time (HH:mm)
+                        let calendar = Calendar.current
+                        let hour = calendar.component(.hour, from: departureDate)
+                        let minute = calendar.component(.minute, from: departureDate)
+                        let timeKey = String(format: "%02d:%02d", hour, minute)
                         
-                        sailings.append(newSailing)
+                        // Only add if we haven't seen this departure time yet
+                        if uniqueSailings[timeKey] == nil {
+                            let newSailing = Sailing(
+                                id: UUID().uuidString,
+                                departureTerminal: route.fromTerminalCode,
+                                arrivalTerminal: route.toTerminalCode,
+                                scheduledDeparture: departureDate,
+                                scheduledArrival: arrivalDate,
+                                vesselName: sailing.vesselName ?? "Unknown Vessel",
+                                isCancelled: sailing.sailingStatus?.lowercased().contains("cancelled") ?? false,
+                                percentageFull: sailing.carFill ?? 0
+                            )
+                            
+                            uniqueSailings[timeKey] = newSailing
+                        }
                     }
                 }
                 
-                print("Processed \(sailings.count) sailings")
+                print("Processed \(uniqueSailings.count) unique sailings")
                 
-                // Sort sailings by departure time
-                return sailings.sorted { $0.scheduledDeparture < $1.scheduledDeparture }
+                // Convert dictionary to array and sort by departure time
+                return uniqueSailings.values.sorted { $0.scheduledDeparture < $1.scheduledDeparture }
                 
             } catch let decodingError {
                 print("Decoding error: \(decodingError)")
@@ -199,17 +206,30 @@ class FerryAPIClient {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "America/Vancouver") // BC Ferries timezone
+        formatter.timeZone = TimeZone(identifier: "America/Vancouver")
         
         if let date = formatter.date(from: timeString) {
             // Adjust to today's date
             let calendar = Calendar.current
             let now = Date()
-            let components = calendar.dateComponents([.year, .month, .day], from: now)
-            return calendar.date(bySettingHour: calendar.component(.hour, from: date),
-                               minute: calendar.component(.minute, from: date),
-                               second: 0,
-                               of: calendar.date(from: components) ?? now)
+            var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
+            
+            // Get hour and minute from the parsed time
+            let timeComponents = calendar.dateComponents([.hour, .minute], from: date)
+            components.hour = timeComponents.hour
+            components.minute = timeComponents.minute
+            
+            // If the sailing time is earlier than current time,
+            // assume it's tomorrow's sailing
+            if let sailingDate = calendar.date(from: components),
+               sailingDate < now {
+                // Add one day to the components
+                if let tomorrow = calendar.date(byAdding: .day, value: 1, to: sailingDate) {
+                    return tomorrow
+                }
+            } else {
+                return calendar.date(from: components)
+            }
         }
         return nil
     }
