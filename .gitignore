@@ -1,1 +1,5 @@
-*.xcodeproj
+# Local Xcode state and generated build output
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.DS_Store
